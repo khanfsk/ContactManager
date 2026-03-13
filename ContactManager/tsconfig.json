@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "lib": ["ES2019", "DOM"],
+    "skipLibCheck": true,
+    "module": "none",
+    "strict": true,
+    "outDir": "wwwroot/js",
+    "rootDir": "wwwroot/ts",
+    "sourceMap": true
+  },
+  "include": ["wwwroot/ts/**/*"]
+}

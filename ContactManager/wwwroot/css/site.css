@@ -1,22 +1,200 @@
 html {
-  font-size: 14px;
+    font-size: 14px;
+    position: relative;
+    min-height: 100%;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    html { font-size: 16px; }
 }
 
 body {
-  margin-bottom: 60px;
+    background: #f5f6fa;
+    color: #1a1a2e;
+}
+
+/* ── Navbar ─────────────────────────────────────── */
+.navbar {
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: #4f46e5 !important;
+    letter-spacing: -.3px;
+}
+
+/* ── Page layout ─────────────────────────────────── */
+.cm-page {
+    max-width: 860px;
+    margin: 2.5rem auto;
+    padding: 0 1rem;
+}
+
+.cm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.cm-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.cm-count {
+    font-size: .85rem;
+    color: #888;
+}
+
+/* ── Search ──────────────────────────────────────── */
+.cm-search-wrap {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+
+.cm-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    pointer-events: none;
+}
+
+.cm-search {
+    padding-left: 2.4rem;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    box-shadow: none;
+    height: 42px;
+}
+
+.cm-search:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+
+/* ── Table ───────────────────────────────────────── */
+.cm-table {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    border: none;
+}
+
+.cm-table thead th {
+    background: #f8f8fb;
+    color: #888;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border: none;
+    padding: .85rem 1rem;
+    font-weight: 600;
+}
+
+.cm-table tbody tr {
+    transition: background .15s;
+}
+
+.cm-table tbody tr:hover {
+    background: #f9f9ff;
+}
+
+.cm-table td {
+    vertical-align: middle;
+    padding: .85rem 1rem;
+    border-color: #f0f0f5;
+}
+
+/* ── Avatar ──────────────────────────────────────── */
+.cm-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: .75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────── */
+.cm-btn-add {
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: .5rem 1.1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+.cm-btn-add:hover {
+    background: #4338ca;
+    color: #fff;
+}
+
+.cm-btn-edit {
+    border: 1px solid #e0e0e0;
+    color: #555;
+    background: #fff;
+    border-radius: 7px;
+    font-size: .8rem;
+}
+
+.cm-btn-edit:hover {
+    background: #f3f3f3;
+    color: #222;
+}
+
+.cm-btn-delete {
+    border: 1px solid #fee2e2;
+    color: #dc2626;
+    background: #fff;
+    border-radius: 7px;
+    font-size: .8rem;
+}
+
+.cm-btn-delete:hover {
+    background: #fee2e2;
+}
+
+/* ── Empty / loading state ───────────────────────── */
+.cm-empty {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: #aaa;
+}
+
+.cm-spinner {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* ── Modal ───────────────────────────────────────── */
+.cm-modal {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,.12);
+}
+
+.cm-modal .form-control {
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.cm-modal .form-control:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
 }

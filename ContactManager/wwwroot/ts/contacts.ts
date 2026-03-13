@@ -11,6 +11,20 @@ function escapeHtml(text: string): string {
     return $("<div>").text(text || "").html();
 }
 
+function getInitials(name: string): string {
+    return name.trim().split(" ")
+        .slice(0, 2)
+        .map(n => n[0].toUpperCase())
+        .join("");
+}
+
+// cycles through a few colors based on the first char so each contact feels distinct
+function getAvatarColor(name: string): string {
+    const colors = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+}
+
 function showAlert(message: string, type: "success" | "danger"): void {
     const html = `
         <div class="alert alert-${type} alert-dismissible fade show" role="alert">
@@ -24,28 +38,53 @@ function showAlert(message: string, type: "success" | "danger"): void {
     }, 4000);
 }
 
+function updateCount(n: number): void {
+    $("#contactCount").text(`${n} ${n === 1 ? "contact" : "contacts"}`);
+}
+
+function showTable(): void {
+    $("#loadingState").addClass("d-none");
+    $("#emptyState").addClass("d-none");
+    $("#contactsTable").removeClass("d-none");
+}
+
+function showEmpty(): void {
+    $("#loadingState").addClass("d-none");
+    $("#contactsTable").addClass("d-none");
+    $("#emptyState").removeClass("d-none");
+}
+
 function renderContacts(contacts: Contact[]): void {
-    const tbody = $("#contactsBody");
-    tbody.empty();
+    updateCount(contacts.length);
 
     if (!contacts || contacts.length === 0) {
-        tbody.append('<tr><td colspan="4" class="text-center text-muted">No contacts found.</td></tr>');
+        showEmpty();
         return;
     }
 
+    showTable();
+    const tbody = $("#contactsBody");
+    tbody.empty();
+
     contacts.forEach(c => {
+        const initials = getInitials(c.name);
+        const color = getAvatarColor(c.name);
+
         tbody.append(`
             <tr data-id="${c.id}">
-                <td>${escapeHtml(c.name)}</td>
-                <td>${escapeHtml(c.email)}</td>
-                <td>${escapeHtml(c.phone)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-warning btn-edit me-1"
+                    <div class="cm-avatar" style="background:${color}">${initials}</div>
+                </td>
+                <td class="fw-medium">${escapeHtml(c.name)}</td>
+                <td class="text-muted">${escapeHtml(c.email)}</td>
+                <td class="text-muted">${escapeHtml(c.phone)}</td>
+                <td>
+                    <button class="btn btn-sm cm-btn-edit btn-edit me-1"
                         data-id="${c.id}"
                         data-name="${escapeHtml(c.name)}"
                         data-email="${escapeHtml(c.email)}"
-                        data-phone="${escapeHtml(c.phone)}">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${c.id}">Delete</button>
+                        data-phone="${escapeHtml(c.phone ?? "")}">Edit</button>
+                    <button class="btn btn-sm cm-btn-delete btn-delete" data-id="${c.id}">Delete</button>
                 </td>
             </tr>
         `);
@@ -153,7 +192,7 @@ $(document).ready(function () {
             id: $(this).data("id"),
             name: $(this).data("name"),
             email: $(this).data("email"),
-            phone: $(this).data("phone")
+            phone: $(this).data("phone") ?? ""
         };
         openModal(contact);
     });
@@ -164,7 +203,11 @@ $(document).ready(function () {
 
         $.ajax({ url: `/Contact/Delete/${id}`, method: "DELETE" })
             .done(() => {
-                $(`tr[data-id="${id}"]`).fadeOut(300, function () { $(this).remove(); });
+                $(`tr[data-id="${id}"]`).fadeOut(300, function () {
+                    $(this).remove();
+                    if ($("#contactsBody tr").length === 0) showEmpty();
+                    updateCount(parseInt($("#contactCount").text()) - 1);
+                });
                 showAlert("Contact deleted.", "success");
             })
             .fail(() => showAlert("Could not delete contact.", "danger"));

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ContactManager.Models.Validation;
 
 namespace ContactManager.Models;
 
@@ -15,7 +16,7 @@ public class Contact
     [StringLength(200)]
     public string Email { get; set; } = string.Empty;
 
-    // Phone is optional — no [Phone] attribute because .NET rejects empty strings even on optional fields
+    [OptionalPhone]
     [StringLength(20)]
     public string Phone { get; set; } = string.Empty;
 }

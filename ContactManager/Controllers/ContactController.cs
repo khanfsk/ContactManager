@@ -1,4 +1,5 @@
 using ContactManager.Models;
+using ContactManager.Models.Exceptions;
 using ContactManager.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,18 +29,32 @@ public class ContactController : Controller
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var created = _contactService.Add(contact);
-        return Json(created);
+        try
+        {
+            var created = _contactService.Add(contact);
+            return Json(created);
+        }
+        catch (DuplicateEmailException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 
     [HttpPut("Update/{id}")]
     public IActionResult Update(Guid id, [FromBody] Contact contact)
     {
-        var updated = _contactService.Update(id, contact);
-        if (updated is null)
-            return NotFound();
+        try
+        {
+            var updated = _contactService.Update(id, contact);
+            if (updated is null)
+                return NotFound();
 
-        return Json(updated);
+            return Json(updated);
+        }
+        catch (DuplicateEmailException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("Delete/{id}")]

@@ -1,5 +1,6 @@
 using ContactManager.Controllers;
 using ContactManager.Models;
+using ContactManager.Models.Exceptions;
 using ContactManager.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
@@ -22,8 +23,6 @@ public class ContactControllerTests
         return (mock, new ContactController(mock.Object));
     }
 
-    
-
     public class IndexTests
     {
         [Fact]
@@ -31,21 +30,18 @@ public class ContactControllerTests
         {
             var (_, controller) = CreateSut();
 
-            controller.Index().Should().BeOfType<ViewResult>();
+            var result = controller.Index();
+
+            result.Should().BeOfType<ViewResult>();
         }
     }
-
-  
 
     public class GetAllTests
     {
         private readonly Mock<IContactService> _mock;
         private readonly ContactController _controller;
 
-        public GetAllTests()
-        {
-            (_mock, _controller) = CreateSut();
-        }
+        public GetAllTests() => (_mock, _controller) = CreateSut();
 
         [Fact]
         public void ReturnsJsonWithContacts()
@@ -69,16 +65,12 @@ public class ContactControllerTests
         }
     }
 
-    
     public class SearchTests
     {
         private readonly Mock<IContactService> _mock;
         private readonly ContactController _controller;
 
-        public SearchTests()
-        {
-            (_mock, _controller) = CreateSut();
-        }
+        public SearchTests() => (_mock, _controller) = CreateSut();
 
         [Fact]
         public void ReturnsJsonWithFilteredContacts()
@@ -102,17 +94,13 @@ public class ContactControllerTests
             _mock.Verify(s => s.Search(string.Empty), Times.Once);
         }
     }
-    
 
     public class CreateTests
     {
         private readonly Mock<IContactService> _mock;
         private readonly ContactController _controller;
 
-        public CreateTests()
-        {
-            (_mock, _controller) = CreateSut();
-        }
+        public CreateTests() => (_mock, _controller) = CreateSut();
 
         [Fact]
         public void ValidContact_ReturnsCreatedContact()
@@ -137,19 +125,36 @@ public class ContactControllerTests
             result.Should().BeOfType<BadRequestObjectResult>();
             _mock.Verify(s => s.Add(It.IsAny<Contact>()), Times.Never);
         }
-    }
 
-    
+        [Fact]
+        public void InvalidPhone_ReturnsBadRequest_WithoutCallingService()
+        {
+            _controller.ModelState.AddModelError("Phone", "Please enter a valid phone number.");
+
+            var result = _controller.Create(new Contact { Name = DefaultName, Email = DefaultEmail, Phone = "abc" });
+
+            result.Should().BeOfType<BadRequestObjectResult>();
+            _mock.Verify(s => s.Add(It.IsAny<Contact>()), Times.Never);
+        }
+
+        [Fact]
+        public void DuplicateEmail_ReturnsConflict()
+        {
+            var input = Make();
+            _mock.Setup(s => s.Add(input)).Throws(new DuplicateEmailException(DefaultEmail));
+
+            var result = _controller.Create(input);
+
+            result.Should().BeOfType<ConflictObjectResult>();
+        }
+    }
 
     public class UpdateTests
     {
         private readonly Mock<IContactService> _mock;
         private readonly ContactController _controller;
 
-        public UpdateTests()
-        {
-            (_mock, _controller) = CreateSut();
-        }
+        public UpdateTests() => (_mock, _controller) = CreateSut();
 
         [Fact]
         public void ExistingContact_ReturnsUpdatedContact()
@@ -175,19 +180,26 @@ public class ContactControllerTests
 
             result.Should().BeOfType<NotFoundResult>();
         }
-    }
 
-    
+        [Fact]
+        public void DuplicateEmail_ReturnsConflict()
+        {
+            var id = Guid.NewGuid();
+            _mock.Setup(s => s.Update(id, It.IsAny<Contact>()))
+                 .Throws(new DuplicateEmailException(DefaultEmail));
+
+            var result = _controller.Update(id, Make());
+
+            result.Should().BeOfType<ConflictObjectResult>();
+        }
+    }
 
     public class DeleteTests
     {
         private readonly Mock<IContactService> _mock;
         private readonly ContactController _controller;
 
-        public DeleteTests()
-        {
-            (_mock, _controller) = CreateSut();
-        }
+        public DeleteTests() => (_mock, _controller) = CreateSut();
 
         [Fact]
         public void ExistingContact_ReturnsOk()

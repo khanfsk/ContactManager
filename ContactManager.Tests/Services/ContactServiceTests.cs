@@ -1,6 +1,9 @@
 using ContactManager.Models;
+using ContactManager.Models.Exceptions;
 using ContactManager.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace ContactManager.Tests.Services;
@@ -18,220 +21,153 @@ public class ContactServiceTests
         string email = DefaultEmail,
         string phone = DefaultPhone) => new() { Name = name, Email = email, Phone = phone };
 
-    // -------------------------------------------------------------------------
+    private static (Mock<IContactRepository> repo, IContactService service) CreateSut()
+    {
+        var repo    = new Mock<IContactRepository>();
+        var service = new ContactService(repo.Object, NullLogger<ContactService>.Instance);
+        return (repo, service);
+    }
 
     public class GetAllTests
     {
-        private readonly IContactService _service = new ContactService();
-
         [Fact]
-        public void WhenEmpty_ReturnsEmptyList()
+        public void DelegatesToRepository()
         {
-            _service.GetAll().Should().BeEmpty();
-        }
+            var (repo, service) = CreateSut();
+            var contacts = new List<Contact> { Make() };
+            repo.Setup(r => r.GetAll()).Returns(contacts);
 
-        [Fact]
-        public void AfterAddingContacts_ReturnsAll()
-        {
-            _service.Add(Make());
-            _service.Add(Make(AltName, AltEmail));
+            var result = service.GetAll();
 
-            _service.GetAll().Should().HaveCount(2);
+            result.Should().BeEquivalentTo(contacts);
+            repo.Verify(r => r.GetAll(), Times.Once);
         }
     }
-
-    // -------------------------------------------------------------------------
 
     public class AddTests
     {
-        private readonly IContactService _service = new ContactService();
-
         [Fact]
-        public void AssignsNonEmptyId()
+        public void UniqueEmail_DelegatesToRepository()
         {
-            var result = _service.Add(Make());
-
-            result.Id.Should().NotBe(Guid.Empty);
-        }
-
-        // Service owns ID generation — a caller-supplied ID should be overwritten
-        [Fact]
-        public void IgnoresIncomingId()
-        {
-            var incoming = Guid.NewGuid();
+            var (repo, service) = CreateSut();
             var contact = Make();
-            contact.Id = incoming;
+            var stored  = Make(); stored.Id = Guid.NewGuid();
+            repo.Setup(r => r.ExistsByEmail(DefaultEmail, null)).Returns(false);
+            repo.Setup(r => r.Add(contact)).Returns(stored);
 
-            var result = _service.Add(contact);
+            var result = service.Add(contact);
 
-            result.Id.Should().NotBe(incoming);
+            result.Should().BeEquivalentTo(stored);
+            repo.Verify(r => r.Add(contact), Times.Once);
         }
 
         [Fact]
-        public void EachContactGetsUniqueId()
+        public void DuplicateEmail_ThrowsDuplicateEmailException()
         {
-            var first  = _service.Add(Make());
-            var second = _service.Add(Make(AltName, AltEmail));
+            var (repo, service) = CreateSut();
+            repo.Setup(r => r.ExistsByEmail(DefaultEmail, null)).Returns(true);
 
-            first.Id.Should().NotBe(second.Id);
-        }
+            var act = () => service.Add(Make());
 
-        [Fact]
-        public void StoredContact_AppearsInGetAll()
-        {
-            _service.Add(Make());
-
-            _service.GetAll().Should().HaveCount(1);
+            act.Should().Throw<DuplicateEmailException>()
+               .WithMessage($"*{DefaultEmail}*");
+            repo.Verify(r => r.Add(It.IsAny<Contact>()), Times.Never);
         }
     }
-
-    // -------------------------------------------------------------------------
-
-    public class GetByIdTests
-    {
-        private readonly IContactService _service = new ContactService();
-
-        [Fact]
-        public void ExistingId_ReturnsCorrectContact()
-        {
-            var added = _service.Add(Make());
-
-            var result = _service.GetById(added.Id);
-
-            result.Should().NotBeNull();
-            result!.Id.Should().Be(added.Id);
-        }
-
-        [Fact]
-        public void UnknownId_ReturnsNull()
-        {
-            _service.GetById(Guid.NewGuid()).Should().BeNull();
-        }
-    }
-
-    // -------------------------------------------------------------------------
 
     public class UpdateTests
     {
-        private readonly IContactService _service = new ContactService();
-
         [Fact]
-        public void ExistingContact_UpdatesAllFields()
+        public void ExistingContact_DelegatesToRepository()
         {
-            var added = _service.Add(Make());
+            var (repo, service) = CreateSut();
+            var id      = Guid.NewGuid();
+            var input   = Make("Alice V2", "v2@example.com");
+            var updated = new Contact { Id = id, Name = "Alice V2", Email = "v2@example.com" };
+            repo.Setup(r => r.ExistsByEmail("v2@example.com", id)).Returns(false);
+            repo.Setup(r => r.Update(id, input)).Returns(updated);
 
-            var result = _service.Update(added.Id, new Contact { Name = "Alice V2", Email = "v2@example.com", Phone = "999" });
+            var result = service.Update(id, input);
 
-            result.Should().NotBeNull();
-            result!.Name.Should().Be("Alice V2");
-            result.Email.Should().Be("v2@example.com");
-            result.Phone.Should().Be("999");
+            result.Should().BeEquivalentTo(updated);
+            repo.Verify(r => r.Update(id, input), Times.Once);
         }
 
         [Fact]
-        public void ExistingContact_PreservesId()
+        public void DuplicateEmail_ThrowsDuplicateEmailException()
         {
-            var added = _service.Add(Make());
+            var (repo, service) = CreateSut();
+            var id = Guid.NewGuid();
+            repo.Setup(r => r.ExistsByEmail(AltEmail, id)).Returns(true);
 
-            var result = _service.Update(added.Id, Make("Alice V2", "v2@example.com"));
+            var act = () => service.Update(id, Make(AltName, AltEmail));
 
-            result!.Id.Should().Be(added.Id);
-        }
-
-        [Fact]
-        public void DoesNotAffectOtherContacts()
-        {
-            var alice = _service.Add(Make());
-            var bob   = _service.Add(Make(AltName, AltEmail));
-
-            _service.Update(alice.Id, Make("Alice V2", "v2@example.com"));
-
-            _service.GetById(bob.Id)!.Name.Should().Be(AltName);
+            act.Should().Throw<DuplicateEmailException>()
+               .WithMessage($"*{AltEmail}*");
+            repo.Verify(r => r.Update(It.IsAny<Guid>(), It.IsAny<Contact>()), Times.Never);
         }
 
         [Fact]
         public void UnknownId_ReturnsNull()
         {
-            var result = _service.Update(Guid.NewGuid(), Make());
+            var (repo, service) = CreateSut();
+            var id = Guid.NewGuid();
+            repo.Setup(r => r.ExistsByEmail(DefaultEmail, id)).Returns(false);
+            repo.Setup(r => r.Update(id, It.IsAny<Contact>())).Returns((Contact?)null);
+
+            var result = service.Update(id, Make());
 
             result.Should().BeNull();
         }
     }
 
-    // -------------------------------------------------------------------------
-
     public class DeleteTests
     {
-        private readonly IContactService _service = new ContactService();
-
         [Fact]
         public void ExistingContact_ReturnsTrue()
         {
-            var added = _service.Add(Make());
+            var (repo, service) = CreateSut();
+            var id = Guid.NewGuid();
+            repo.Setup(r => r.Delete(id)).Returns(true);
 
-            _service.Delete(added.Id).Should().BeTrue();
-        }
-
-        [Fact]
-        public void ExistingContact_RemovesFromList()
-        {
-            var added = _service.Add(Make());
-
-            _service.Delete(added.Id);
-
-            _service.GetAll().Should().BeEmpty();
-        }
-
-        [Fact]
-        public void DoesNotAffectOtherContacts()
-        {
-            var alice = _service.Add(Make());
-            var bob   = _service.Add(Make(AltName, AltEmail));
-
-            _service.Delete(alice.Id);
-
-            _service.GetAll().Should().ContainSingle(c => c.Id == bob.Id);
+            service.Delete(id).Should().BeTrue();
+            repo.Verify(r => r.Delete(id), Times.Once);
         }
 
         [Fact]
         public void UnknownId_ReturnsFalse()
         {
-            _service.Delete(Guid.NewGuid()).Should().BeFalse();
+            var (repo, service) = CreateSut();
+            var id = Guid.NewGuid();
+            repo.Setup(r => r.Delete(id)).Returns(false);
+
+            service.Delete(id).Should().BeFalse();
         }
     }
 
-    // -------------------------------------------------------------------------
-
     public class SearchTests
     {
-        private readonly IContactService _service = new ContactService();
-
-        // seeds two contacts: alice@example.com and bob@example.com
-        public SearchTests()
-        {
-            _service.Add(Make());
-            _service.Add(Make(AltName, AltEmail));
-        }
-
         [Theory]
-        [InlineData("alice",       1)]  // matches name
-        [InlineData("ALICE",       1)]  // case insensitive
-        [InlineData("bob",         1)]  // matches other contact
-        [InlineData("example.com", 2)]  // both share the same domain
-        [InlineData("",            2)]  // empty = return all
-        [InlineData("   ",         2)]  // whitespace = return all
-        [InlineData("zzz_nope",    0)]  // no match
+        [InlineData("alice",       1)]
+        [InlineData("ALICE",       1)]
+        [InlineData("bob",         1)]
+        [InlineData("example.com", 2)]
+        [InlineData("",            2)]
+        [InlineData("   ",         2)]
+        [InlineData("zzz_nope",    0)]
         public void ReturnsExpectedCount(string query, int expectedCount)
         {
-            _service.Search(query).Should().HaveCount(expectedCount);
-        }
+            var (repo, service) = CreateSut();
+            var contacts = new List<Contact>
+            {
+                new() { Id = Guid.NewGuid(), Name = DefaultName, Email = DefaultEmail },
+                new() { Id = Guid.NewGuid(), Name = AltName,     Email = AltEmail     },
+            };
+            repo.Setup(r => r.GetAll()).Returns(contacts);
 
-        [Fact]
-        public void ByEmail_ReturnsCorrectContact()
-        {
-            var result = _service.Search("alice@example.com");
+            var result = service.Search(query);
 
-            result.Should().ContainSingle(c => c.Name == DefaultName);
+            result.Should().HaveCount(expectedCount);
         }
     }
 }

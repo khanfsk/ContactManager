@@ -1,4 +1,3 @@
-// Contact shape returned by the API
 interface Contact {
     id: string;
     name: string;
@@ -13,7 +12,6 @@ function escapeHtml(text: string): string {
     return $("<div>").text(text || "").html();
 }
 
-// Generates 1-2 letter initials from a full name
 function getInitials(name: string): string {
     return name.trim().split(" ")
         .slice(0, 2)
@@ -21,7 +19,6 @@ function getInitials(name: string): string {
         .join("");
 }
 
-// Picks a consistent color per contact based on the first letter of their name
 function getAvatarColor(name: string): string {
     const colors = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"];
     return colors[name.charCodeAt(0) % colors.length];
@@ -56,7 +53,6 @@ function showEmpty(): void {
     $("#emptyState").removeClass("d-none");
 }
 
-// Shows or hides the "Delete Selected" button based on how many rows are checked
 function updateDeleteSelectedButton(): void {
     const checkedCount = $(".row-checkbox:checked").length;
     checkedCount > 0
@@ -175,15 +171,19 @@ function saveContact(): void {
             showAlert(`Contact ${isEdit ? "updated" : "added"} successfully.`, "success");
         })
         .fail((xhr: JQuery.jqXHR) => {
-            const errors = xhr.responseJSON?.errors;
-            const msg = errors
-                ? Object.values(errors).flat().join(" ")
-                : "Something went wrong. Please try again.";
-            showAlert(msg as string, "danger");
+            if (xhr.status === 409) {
+                $("#contactEmail").addClass("is-invalid");
+                $("#emailError").text(xhr.responseJSON?.error ?? "That email is already in use.");
+            } else {
+                const errors = xhr.responseJSON?.errors;
+                const msg = errors
+                    ? Object.values(errors).flat().join(" ")
+                    : "Something went wrong. Please try again.";
+                showAlert(msg as string, "danger");
+            }
         });
 }
 
-// Deletes all currently checked contacts one by one then refreshes the list
 function deleteSelected(): void {
     const ids: string[] = [];
     $(".row-checkbox:checked").each(function () {
@@ -199,7 +199,6 @@ function deleteSelected(): void {
         $.ajax({ url: `/Contact/Delete/${id}`, method: "DELETE" })
     );
 
-    // Wait for all deletes to finish before refreshing
     $.when(...requests)
         .done(() => {
             loadContacts();
@@ -211,8 +210,7 @@ function deleteSelected(): void {
 $(document).ready(function () {
     loadContacts();
 
-    // Debounced search — waits 300ms after the user stops typing before firing
-    let searchTimer: ReturnType<typeof setTimeout>;
+    let searchTimer: ReturnType<typeof setTimeout>; // 300ms debounce
     $("#searchInput").on("input", function () {
         clearTimeout(searchTimer);
         const query = ($(this).val() as string).trim();
@@ -227,13 +225,11 @@ $(document).ready(function () {
     $("#btnSave").on("click", saveContact);
     $("#btnDeleteSelected").on("click", deleteSelected);
 
-    // Select all / deselect all rows
     $("#selectAll").on("change", function () {
         $(".row-checkbox").prop("checked", $(this).is(":checked"));
         updateDeleteSelectedButton();
     });
 
-    // Track individual checkbox changes to show/hide delete button
     $(document).on("change", ".row-checkbox", function () {
         const total = $(".row-checkbox").length;
         const checked = $(".row-checkbox:checked").length;
@@ -251,7 +247,6 @@ $(document).ready(function () {
         openModal(contact);
     });
 
-    // Enter key inside the modal saves the form
     $("#contactModal").on("keydown", "input", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();

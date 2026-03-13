@@ -4,14 +4,12 @@ const contactModal = new bootstrap.Modal(document.getElementById("contactModal")
 function escapeHtml(text) {
     return $("<div>").text(text || "").html();
 }
-// Generates 1-2 letter initials from a full name
 function getInitials(name) {
     return name.trim().split(" ")
         .slice(0, 2)
         .map(n => n[0].toUpperCase())
         .join("");
 }
-// Picks a consistent color per contact based on the first letter of their name
 function getAvatarColor(name) {
     const colors = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"];
     return colors[name.charCodeAt(0) % colors.length];
@@ -42,7 +40,6 @@ function showEmpty() {
     $("#contactsTable").addClass("d-none");
     $("#emptyState").removeClass("d-none");
 }
-// Shows or hides the "Delete Selected" button based on how many rows are checked
 function updateDeleteSelectedButton() {
     const checkedCount = $(".row-checkbox:checked").length;
     checkedCount > 0
@@ -148,15 +145,20 @@ function saveContact() {
         showAlert(`Contact ${isEdit ? "updated" : "added"} successfully.`, "success");
     })
         .fail((xhr) => {
-        var _a;
-        const errors = (_a = xhr.responseJSON) === null || _a === void 0 ? void 0 : _a.errors;
-        const msg = errors
-            ? Object.values(errors).flat().join(" ")
-            : "Something went wrong. Please try again.";
-        showAlert(msg, "danger");
+        var _a, _b, _c;
+        if (xhr.status === 409) {
+            $("#contactEmail").addClass("is-invalid");
+            $("#emailError").text((_b = (_a = xhr.responseJSON) === null || _a === void 0 ? void 0 : _a.error) !== null && _b !== void 0 ? _b : "That email is already in use.");
+        }
+        else {
+            const errors = (_c = xhr.responseJSON) === null || _c === void 0 ? void 0 : _c.errors;
+            const msg = errors
+                ? Object.values(errors).flat().join(" ")
+                : "Something went wrong. Please try again.";
+            showAlert(msg, "danger");
+        }
     });
 }
-// Deletes all currently checked contacts one by one then refreshes the list
 function deleteSelected() {
     const ids = [];
     $(".row-checkbox:checked").each(function () {
@@ -168,7 +170,6 @@ function deleteSelected() {
     if (!confirm(`Delete ${label}?`))
         return;
     const requests = ids.map(id => $.ajax({ url: `/Contact/Delete/${id}`, method: "DELETE" }));
-    // Wait for all deletes to finish before refreshing
     $.when(...requests)
         .done(() => {
         loadContacts();
@@ -178,8 +179,7 @@ function deleteSelected() {
 }
 $(document).ready(function () {
     loadContacts();
-    // Debounced search — waits 300ms after the user stops typing before firing
-    let searchTimer;
+    let searchTimer; // 300ms debounce
     $("#searchInput").on("input", function () {
         clearTimeout(searchTimer);
         const query = $(this).val().trim();
@@ -192,12 +192,10 @@ $(document).ready(function () {
     $("#btnAddContact").on("click", () => openModal());
     $("#btnSave").on("click", saveContact);
     $("#btnDeleteSelected").on("click", deleteSelected);
-    // Select all / deselect all rows
     $("#selectAll").on("change", function () {
         $(".row-checkbox").prop("checked", $(this).is(":checked"));
         updateDeleteSelectedButton();
     });
-    // Track individual checkbox changes to show/hide delete button
     $(document).on("change", ".row-checkbox", function () {
         const total = $(".row-checkbox").length;
         const checked = $(".row-checkbox:checked").length;
@@ -214,7 +212,6 @@ $(document).ready(function () {
         };
         openModal(contact);
     });
-    // Enter key inside the modal saves the form
     $("#contactModal").on("keydown", "input", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();

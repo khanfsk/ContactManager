@@ -15,7 +15,7 @@ public class Contact
     [StringLength(200)]
     public string Email { get; set; } = string.Empty;
 
-    [Phone(ErrorMessage = "Please enter a valid phone number.")]
+    // Phone is optional — no [Phone] attribute because .NET rejects empty strings even on optional fields
     [StringLength(20)]
     public string Phone { get; set; } = string.Empty;
 }

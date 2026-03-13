@@ -8,12 +8,17 @@
             <h1 class="cm-title">My Contacts</h1>
             <span class="cm-count" id="contactCount">0 contacts</span>
         </div>
-        <button id="btnAddContact" class="btn cm-btn-add">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
-                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-            </svg>
-            Add Contact
-        </button>
+        <div class="d-flex gap-2">
+            <button id="btnDeleteSelected" class="btn cm-btn-delete-many d-none">
+                Delete Selected
+            </button>
+            <button id="btnAddContact" class="btn cm-btn-add">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                </svg>
+                Add Contact
+            </button>
+        </div>
     </div>
 
     <div class="cm-search-wrap">
@@ -42,11 +47,14 @@
         <table class="table cm-table d-none" id="contactsTable">
             <thead>
                 <tr>
+                    <th style="width:40px;">
+                        <input type="checkbox" class="form-check-input" id="selectAll" />
+                    </th>
                     <th style="width:48px;"></th>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
-                    <th style="width:130px;"></th>
+                    <th style="width:80px;"></th>
                 </tr>
             </thead>
             <tbody id="contactsBody"></tbody>

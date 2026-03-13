@@ -1,3 +1,4 @@
+// Contact shape returned by the API
 interface Contact {
     id: string;
     name: string;
@@ -7,10 +8,12 @@ interface Contact {
 
 const contactModal = new bootstrap.Modal(document.getElementById("contactModal")!);
 
+// Safely encode user-supplied strings before inserting into the DOM
 function escapeHtml(text: string): string {
     return $("<div>").text(text || "").html();
 }
 
+// Generates 1-2 letter initials from a full name
 function getInitials(name: string): string {
     return name.trim().split(" ")
         .slice(0, 2)
@@ -18,11 +21,10 @@ function getInitials(name: string): string {
         .join("");
 }
 
-// cycles through a few colors based on the first char so each contact feels distinct
+// Picks a consistent color per contact based on the first letter of their name
 function getAvatarColor(name: string): string {
     const colors = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
+    return colors[name.charCodeAt(0) % colors.length];
 }
 
 function showAlert(message: string, type: "success" | "danger"): void {
@@ -54,8 +56,18 @@ function showEmpty(): void {
     $("#emptyState").removeClass("d-none");
 }
 
+// Shows or hides the "Delete Selected" button based on how many rows are checked
+function updateDeleteSelectedButton(): void {
+    const checkedCount = $(".row-checkbox:checked").length;
+    checkedCount > 0
+        ? $("#btnDeleteSelected").removeClass("d-none")
+        : $("#btnDeleteSelected").addClass("d-none");
+}
+
 function renderContacts(contacts: Contact[]): void {
     updateCount(contacts.length);
+    $("#selectAll").prop("checked", false);
+    $("#btnDeleteSelected").addClass("d-none");
 
     if (!contacts || contacts.length === 0) {
         showEmpty();
@@ -73,18 +85,20 @@ function renderContacts(contacts: Contact[]): void {
         tbody.append(`
             <tr data-id="${c.id}">
                 <td>
+                    <input type="checkbox" class="form-check-input row-checkbox" data-id="${c.id}" />
+                </td>
+                <td>
                     <div class="cm-avatar" style="background:${color}">${initials}</div>
                 </td>
                 <td class="fw-medium">${escapeHtml(c.name)}</td>
                 <td class="text-muted">${escapeHtml(c.email)}</td>
                 <td class="text-muted">${escapeHtml(c.phone)}</td>
                 <td>
-                    <button class="btn btn-sm cm-btn-edit btn-edit me-1"
+                    <button class="btn btn-sm cm-btn-edit btn-edit"
                         data-id="${c.id}"
                         data-name="${escapeHtml(c.name)}"
                         data-email="${escapeHtml(c.email)}"
                         data-phone="${escapeHtml(c.phone ?? "")}">Edit</button>
-                    <button class="btn btn-sm cm-btn-delete btn-delete" data-id="${c.id}">Delete</button>
                 </td>
             </tr>
         `);
@@ -169,11 +183,36 @@ function saveContact(): void {
         });
 }
 
+// Deletes all currently checked contacts one by one then refreshes the list
+function deleteSelected(): void {
+    const ids: string[] = [];
+    $(".row-checkbox:checked").each(function () {
+        ids.push($(this).data("id") as string);
+    });
+
+    if (ids.length === 0) return;
+
+    const label = ids.length === 1 ? "1 contact" : `${ids.length} contacts`;
+    if (!confirm(`Delete ${label}?`)) return;
+
+    const requests = ids.map(id =>
+        $.ajax({ url: `/Contact/Delete/${id}`, method: "DELETE" })
+    );
+
+    // Wait for all deletes to finish before refreshing
+    $.when(...requests)
+        .done(() => {
+            loadContacts();
+            showAlert(`${label} deleted.`, "success");
+        })
+        .fail(() => showAlert("Some contacts could not be deleted.", "danger"));
+}
+
 $(document).ready(function () {
     loadContacts();
 
+    // Debounced search — waits 300ms after the user stops typing before firing
     let searchTimer: ReturnType<typeof setTimeout>;
-
     $("#searchInput").on("input", function () {
         clearTimeout(searchTimer);
         const query = ($(this).val() as string).trim();
@@ -186,6 +225,21 @@ $(document).ready(function () {
 
     $("#btnAddContact").on("click", () => openModal());
     $("#btnSave").on("click", saveContact);
+    $("#btnDeleteSelected").on("click", deleteSelected);
+
+    // Select all / deselect all rows
+    $("#selectAll").on("change", function () {
+        $(".row-checkbox").prop("checked", $(this).is(":checked"));
+        updateDeleteSelectedButton();
+    });
+
+    // Track individual checkbox changes to show/hide delete button
+    $(document).on("change", ".row-checkbox", function () {
+        const total = $(".row-checkbox").length;
+        const checked = $(".row-checkbox:checked").length;
+        $("#selectAll").prop("checked", total === checked);
+        updateDeleteSelectedButton();
+    });
 
     $(document).on("click", ".btn-edit", function () {
         const contact: Contact = {
@@ -197,23 +251,11 @@ $(document).ready(function () {
         openModal(contact);
     });
 
-    $(document).on("click", ".btn-delete", function () {
-        const id = $(this).data("id") as string;
-        if (!confirm("Delete this contact?")) return;
-
-        $.ajax({ url: `/Contact/Delete/${id}`, method: "DELETE" })
-            .done(() => {
-                $(`tr[data-id="${id}"]`).fadeOut(300, function () {
-                    $(this).remove();
-                    if ($("#contactsBody tr").length === 0) showEmpty();
-                    updateCount(parseInt($("#contactCount").text()) - 1);
-                });
-                showAlert("Contact deleted.", "success");
-            })
-            .fail(() => showAlert("Could not delete contact.", "danger"));
-    });
-
-    $("#contactForm").on("keydown", function (e) {
-        if (e.key === "Enter") saveContact();
+    // Enter key inside the modal saves the form
+    $("#contactModal").on("keydown", "input", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            saveContact();
+        }
     });
 });
